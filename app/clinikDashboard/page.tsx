@@ -1,216 +1,192 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
-// Mock data
-const initialQueue = [
-  { id: 1, name: "Ram Sharma", time: "11:00 AM", phone: "98765 43210" },
-  { id: 2, name: "Ahmed Khan", time: "11:15 AM", phone: "98765 43211" },
-  { id: 3, name: "Sita Patel", time: "11:30 AM", phone: "98765 43212" },
-  { id: 4, name: "You (Demo User)", time: "11:45 AM", phone: "98765 43213" },
-];
+interface Patient {
+  id: number;
+  patientName: string;
+  phone: string;
+  doctorId: number;
+  status: "waiting" | "seen";
+  time: string;
+}
 
 export default function ClinicDashboard() {
-  const [queue, setQueue] = useState(initialQueue);
-  const [patientsSeenToday, setPatientsSeenToday] = useState(24);
+  const [queue, setQueue] = useState<Patient[]>([]);
+  const [patientsSeenToday, setPatientsSeenToday] = useState(0);
   const [walkInName, setWalkInName] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // --- HACKATHON FEATURE LOGIC ---
+  const DOCTOR_ID = 1;
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
+  const fetchQueue = async () => {
+    try {
+      const res = await fetch("/api/doctors");
+      const data = await res.json();
+
+      const waitingPatients = data.appointments.filter(
+        (app: Patient) =>
+          app.doctorId === DOCTOR_ID && app.status === "waiting",
+      );
+
+      const seenCount = data.appointments.filter(
+        (app: Patient) => app.doctorId === DOCTOR_ID && app.status === "seen",
+      ).length;
+
+      setQueue(waitingPatients.sort((a: any, b: any) => a.id - b.id));
+      setPatientsSeenToday(seenCount);
+    } catch (err) {
+      console.error("Fetch error", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkSeen = async () => {
+    setIsLoading(true);
+    try {
+      await fetch("/api/next-patient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctorId: DOCTOR_ID }),
+      });
+      showToast("Patient marked as seen!");
+      fetchQueue();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddWalkIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!walkInName.trim()) return;
+    try {
+      await fetch("/api/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientName: walkInName,
+          phone: "Walk-in",
+          doctorId: DOCTOR_ID,
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }),
+      });
+      setWalkInName("");
+      showToast("Walk-in added!");
+      fetchQueue();
+    } catch (err) {}
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleMarkSeen = (id: number) => {
-    setQueue((prev) => prev.filter((p) => p.id !== id));
-    setPatientsSeenToday((prev) => prev + 1);
-    showToast("Patient marked as seen.");
-  };
-
-  const handleSkip = (id: number) => {
-    setQueue((prev) => {
-      const patientToSkip = prev.find((p) => p.id === id);
-      if (!patientToSkip) return prev;
-      return [
-        ...prev.filter((p) => p.id !== id),
-        { ...patientToSkip, time: "Delayed" },
-      ];
-    });
-    showToast("Patient moved to bottom of queue.");
-  };
-
-  // Feature 1: Emergency Triage (Move to index 0)
-  const handlePrioritize = (id: number) => {
-    setQueue((prev) => {
-      const patient = prev.find((p) => p.id === id);
-      if (!patient) return prev;
-      return [patient, ...prev.filter((p) => p.id !== id)];
-    });
-    showToast("🚨 Patient prioritized for emergency.");
-  };
-
-  // Feature 2: Add Walk-in
-  const handleAddWalkIn = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!walkInName.trim()) return;
-
-    const newPatient = {
-      id: Date.now(),
-      name: `${walkInName} (Walk-in)`,
-      time: "Just Now",
-      phone: "N/A",
-    };
-    setQueue([...queue, newPatient]);
-    setWalkInName("");
-    showToast(`Walk-in ${walkInName} added to queue.`);
-  };
-
-  // Feature 3: Ping Patient
-  const handlePing = (name: string) => {
-    showToast(`💬 WhatsApp reminder sent to ${name}!`);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 py-8 px-4 sm:px-6 lg:px-8 relative">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Dashboard Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              Dr. Sharma's Clinic
-            </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Receptionist Dashboard • Live Queue
-            </p>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 transition-colors duration-300">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* TOP STATS CARD */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 md:col-span-2 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                Dr. Sharma's Clinic
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400">
+                Managing {queue.length} waiting patients
+              </p>
+            </div>
+            <div className="hidden sm:block">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                <span className="w-2 h-2 mr-2 bg-green-500 rounded-full animate-pulse"></span>
+                System Live
+              </span>
+            </div>
           </div>
 
-          <div className="mt-4 sm:mt-0 flex space-x-6">
-            <div className="text-center">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Waiting
-              </p>
-              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                {queue.length}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Seen Today
-              </p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {patientsSeenToday}
-              </p>
-            </div>
+          <div className="bg-blue-600 dark:bg-blue-700 p-6 rounded-2xl shadow-lg text-white flex flex-col justify-center">
+            <p className="text-blue-100 dark:text-blue-200 text-sm uppercase font-semibold">
+              Total Seen Today
+            </p>
+            <p className="text-4xl font-black">{patientsSeenToday}</p>
           </div>
         </div>
 
-        {/* Action Bar (Walk-ins & Status) */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <form
-            onSubmit={handleAddWalkIn}
-            className="flex w-full sm:w-auto gap-2"
-          >
+        {/* ACTION BAR */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4">
+          <form onSubmit={handleAddWalkIn} className="flex-1 flex gap-2">
             <input
               type="text"
-              placeholder="Walk-in Patient Name"
+              placeholder="New Walk-in Name..."
               value={walkInName}
               onChange={(e) => setWalkInName(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none"
             />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-            >
-              + Add Walk-in
+            <button className="bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white px-6 py-2 rounded-xl font-bold hover:opacity-90 transition-all active:scale-95">
+              Add
             </button>
           </form>
 
-          <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              System Online
-            </span>
-          </div>
+          <button
+            onClick={handleMarkSeen}
+            disabled={queue.length === 0 || isLoading}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:text-slate-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+          >
+            {isLoading ? "Processing..." : "Next Patient →"}
+          </button>
         </div>
 
-        {/* Active Queue List */}
-        <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors duration-300">
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+        {/* QUEUE LIST */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <h2 className="font-bold text-lg text-slate-900 dark:text-white">
+              Current Waiting List
+            </h2>
+            <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+              Updates every 3s
+            </span>
+          </div>
+
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {queue.length === 0 ? (
-              <li className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                <span className="block text-4xl mb-3">🎉</span>
-                Queue is empty. Great job today!
+              <li className="p-12 text-center text-slate-400 dark:text-slate-600">
+                <p className="text-3xl mb-2">🎉</p>
+                No patients waiting.
               </li>
             ) : (
-              queue.map((patient, index) => (
+              queue.map((p, index) => (
                 <li
-                  key={patient.id}
-                  className={`px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                    index === 0 ? "bg-blue-50/50 dark:bg-blue-900/10" : ""
-                  }`}
+                  key={p.id}
+                  className={`p-6 flex items-center justify-between transition-colors ${index === 0 ? "bg-blue-50/50 dark:bg-blue-900/20" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
                 >
-                  {/* Patient Info */}
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center gap-4">
                     <div
-                      className={`flex-shrink-0 h-12 w-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                        index === 0
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                          : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                      }`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${index === 0 ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}
                     >
                       {index + 1}
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        {patient.name}
-                        {index === 0 && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
-                            Next Up
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-3">
-                        <span>🕒 {patient.time}</span>
-                        <span>📱 {patient.phone}</span>
+                      <h3 className="font-bold text-slate-900 dark:text-white">
+                        {p.patientName}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {p.time} • {p.phone}
                       </p>
                     </div>
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-2 sm:justify-end">
-                    {index !== 0 && (
-                      <button
-                        onClick={() => handlePrioritize(patient.id)}
-                        title="Emergency Priority"
-                        className="px-3 py-2 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        🚨 Triage
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handlePing(patient.name)}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      💬 Ping
-                    </button>
-                    <button
-                      onClick={() => handleSkip(patient.id)}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      Skip
-                    </button>
-                    <button
-                      onClick={() => handleMarkSeen(patient.id)}
-                      className="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                    >
-                      Mark Seen
-                    </button>
-                  </div>
+                  {index === 0 && (
+                    <span className="animate-pulse bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800">
+                      In Consultation
+                    </span>
+                  )}
                 </li>
               ))
             )}
@@ -218,13 +194,11 @@ export default function ClinicDashboard() {
         </div>
       </div>
 
-      {/* Toast Notification UI */}
+      {/* TOAST NOTIFICATION */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 animate-fade-in-up">
-          <div className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
-            <span className="text-xl">✨</span>
-            <p className="font-medium text-sm">{toastMessage}</p>
-          </div>
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-500 border border-slate-700 dark:border-slate-200">
+          <span className="w-2 h-2 bg-blue-400 dark:bg-blue-600 rounded-full animate-ping" />
+          <p className="font-semibold text-sm">{toastMessage}</p>
         </div>
       )}
     </div>

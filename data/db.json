@@ -1,0 +1,84 @@
+{
+  "doctors": [
+    {
+      "id": 1,
+      "name": "Dr. Ananya Sharma",
+      "specialty": "General Medicine",
+      "queue": 0
+    },
+    {
+      "id": 2,
+      "name": "Dr. Rajesh Khan",
+      "specialty": "Pediatrics",
+      "queue": 0
+    },
+    {
+      "id": 3,
+      "name": "Dr. Sarah Williams",
+      "specialty": "Cardiology",
+      "queue": 0
+    }
+  ],
+  "appointments": [
+    {
+      "id": 1711452000000,
+      "patientName": "Rahul Verma",
+      "phone": "9876543210",
+      "doctorId": 1,
+      "time": "09:00 AM",
+      "status": "seen",
+      "createdAt": "2026-03-26T08:00:00.000Z",
+      "queuePosition": 0
+    },
+    {
+      "id": 1711452600000,
+      "patientName": "Aditi Rao",
+      "phone": "9988776655",
+      "doctorId": 1,
+      "time": "10:30 AM",
+      "status": "seen",
+      "createdAt": "2026-03-26T09:15:00.000Z",
+      "queuePosition": 0
+    },
+    {
+      "id": 1711453200000,
+      "patientName": "Siddharth Malhotra",
+      "phone": "9123456789",
+      "doctorId": 1,
+      "time": "11:00 AM",
+      "status": "seen",
+      "createdAt": "2026-03-26T10:00:00.000Z",
+      "queuePosition": 0
+    },
+    {
+      "id": 1711453800000,
+      "patientName": "Zoya Ahmed",
+      "phone": "8877665544",
+      "doctorId": 2,
+      "time": "10:00 AM",
+      "status": "waiting",
+      "createdAt": "2026-03-26T09:30:00.000Z",
+      "queuePosition": 1
+    },
+    {
+      "id": 1774508666012,
+      "patientName": "jaspreet singh",
+      "phone": "8699540276",
+      "doctorId": 1,
+      "time": "10:30 AM",
+      "status": "waiting",
+      "createdAt": "2026-03-26T07:04:26.012Z",
+      "queuePosition": 1
+    },
+    {
+      "id": 1774509493935,
+      "patientName": "jain lakshya",
+      "phone": "Walk-in",
+      "doctorId": 1,
+      "time": "12:48 PM",
+      "status": "waiting",
+      "createdAt": "2026-03-26T07:18:13.935Z",
+      "queuePosition": 2
+    }
+  ]
+}
