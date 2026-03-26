@@ -1,18 +1,14 @@
 "use client";
 import { CalendarCheck, Users, Activity } from "lucide-react";
 import Link from "next/link";
+import React from "react";
 
-// function HomePage() {
-//   return (
-//     <div>
-//       <h1>Welcome to the Home Page!</h1>
-//       {/* Link to the about page using client-side navigation */}
-//       <Link href="/about">Go to the About Page</Link>
-//     </div>
-//   );
-// }
-
-// export default HomePage;
+// 1. Define the interface for the Feature component props
+interface FeatureProps {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}
 
 export default function LandingPage() {
   return (
@@ -105,16 +101,19 @@ export default function LandingPage() {
             scheduling and queue visibility.
           </p>
 
-          <button className="mt-6 px-8 py-3 rounded-2xl bg-white text-black dark:bg-gray-800 dark:text-white hover:opacity-90 transition-opacity">
-            Get Started
-          </button>
+          <Link href="/booking">
+            <button className="mt-6 px-8 py-3 rounded-2xl bg-white text-black dark:bg-gray-800 dark:text-white hover:opacity-90 transition-opacity">
+              Get Started
+            </button>
+          </Link>
         </div>
       </section>
     </div>
   );
 }
 
-function Feature({ icon, title, text }) {
+// 2. Apply the interface to the component
+function Feature({ icon, title, text }: FeatureProps) {
   return (
     <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-lg dark:hover:shadow-gray-950 transition-shadow">
       <div className="mb-4 text-gray-900 dark:text-gray-100">{icon}</div>
