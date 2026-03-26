@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// 1. Define the Doctor interface for Type Safety
 interface Doctor {
   id: number;
   name: string;
@@ -16,8 +15,8 @@ interface Doctor {
 export default function BookingPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false); // Fix for Hydration Error
 
-  // 2. Updated formData to use empty string for doctor initially
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -32,13 +31,20 @@ export default function BookingPage() {
       const response = await fetch("/api/doctors");
       if (!response.ok) throw new Error("Failed to fetch doctors");
       const data = await response.json();
-      setDoctorListData(data);
+
+      // FIX: Handle both array and object responses
+      if (data.doctors) {
+        setDoctorListData(data.doctors);
+      } else if (Array.isArray(data)) {
+        setDoctorListData(data);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
     }
   };
 
   useEffect(() => {
+    setMounted(true); // Component has mounted on the client
     fetchDoctors();
     const interval = setInterval(fetchDoctors, 15000);
     return () => clearInterval(interval);
@@ -78,6 +84,9 @@ export default function BookingPage() {
     }
   };
 
+  // Prevent hydration mismatch by returning null until client-side mount
+  if (!mounted) return null;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 flex items-center justify-center">
       <div className="max-w-md w-full space-y-6 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
@@ -90,7 +99,6 @@ export default function BookingPage() {
           </p>
         </div>
 
-        {/* Clinic Busy Alert */}
         <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-r-lg">
           <div className="flex">
             <span className="text-amber-500 text-xl">⏱️</span>
@@ -109,7 +117,6 @@ export default function BookingPage() {
         </div>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-          {/* Patient Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Patient Name
@@ -126,7 +133,6 @@ export default function BookingPage() {
             />
           </div>
 
-          {/* Phone Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Phone / WhatsApp Number
@@ -143,7 +149,6 @@ export default function BookingPage() {
             />
           </div>
 
-          {/* Doctor Selection - FIXED SYNC */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Select Doctor
@@ -159,12 +164,13 @@ export default function BookingPage() {
               <option value="" disabled>
                 Choose a specialist...
               </option>
-              {doctorListData.map((doctor) => (
-                <option key={doctor.id} value={doctor.id}>
-                  {doctor.name} — {doctor.specialty} ({doctor.currentQueue} in
-                  queue)
-                </option>
-              ))}
+              {Array.isArray(doctorListData) &&
+                doctorListData.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.name} — {doctor.specialty} ({doctor.currentQueue} in
+                    queue)
+                  </option>
+                ))}
             </select>
           </div>
 
