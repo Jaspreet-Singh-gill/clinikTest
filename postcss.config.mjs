@@ -1,4 +1,5 @@
 const config = {
+  darkNode:"class",
   plugins: {
     "@tailwindcss/postcss": {},
   },
